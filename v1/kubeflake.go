@@ -9,17 +9,9 @@ import (
 	internal "github.com/FlorinBalint/kubeflake/internal/kubeflake"
 )
 
-const minTimeBits = 32
-const minSequenceBits = 8
-const maxSequenceBits = 30
-const minClusterBits = 2
-const maxClusterBits = 8
-const maxMachineBits = 16
-const minMachineBits = 3
-
 type IdParts string
 type settings = internal.Settings
-type BaseConverter = internal.BaseConverter
+type baseConverter = internal.BaseConverter
 
 const (
 	Timestamp IdParts = "timestamp"
@@ -29,16 +21,10 @@ const (
 )
 
 var (
-	ErrInvalidBitsTime      = errors.New("bit length for time must be 32 or more")
-	ErrInvalidBitsSequence  = errors.New("invalid bit length for sequence number")
-	ErrInvalidBitsMachineID = errors.New("invalid bit length for machine id")
-	ErrInvalidBitsClusterID = errors.New("invalid bit length for cluster id")
-	ErrInvalidTimeUnit      = errors.New("invalid time unit")
-	ErrInvalidSequence      = errors.New("invalid sequence number")
-	ErrInvalidMachineID     = errors.New("invalid machine id")
-	ErrInvalidClusterID     = errors.New("invalid cluster id")
-	ErrStartTimeAhead       = errors.New("start time is ahead")
-	ErrOverTimeLimit        = errors.New("over the time limit")
+	errInvalidSequence  = errors.New("invalid sequence number")
+	errInvalidMachineID = errors.New("invalid machine id")
+	errInvalidClusterID = errors.New("invalid cluster id")
+	errOverTimeLimit    = errors.New("over the time limit")
 )
 
 type Kubeflake struct {
@@ -57,12 +43,15 @@ type Kubeflake struct {
 	elapsedTime uint64
 
 	sequence uint64
-	base     BaseConverter
+	base     baseConverter
 	nowFunc  func() time.Time
 }
 
 // New creates a new Kubeflake with the given options
 // If an option is provided, the Kubeflake instance uses the default value for that option.
+// The MachineId function and the ClusterId function must be provided.
+// TODO: Add default MachineId and ClusterId options
+//
 // The default settings are:
 // - BitsSequence: 8
 // - BitsCluster: 8
@@ -89,20 +78,8 @@ func New(opts ...GeneratorOptions) (*Kubeflake, error) {
 // - Settings.ClusterId returns an error.
 func newWithSettings(settings settings) (*Kubeflake, error) {
 	// Validate settings
-	if settings.BitsSequence < minSequenceBits || settings.BitsSequence > maxSequenceBits {
-		return nil, ErrInvalidBitsSequence
-	}
-	if settings.BitsMachine < minMachineBits || settings.BitsMachine > maxMachineBits {
-		return nil, ErrInvalidBitsMachineID
-	}
-	if settings.BitsCluster < minClusterBits || settings.BitsCluster > maxClusterBits {
-		return nil, ErrInvalidBitsClusterID
-	}
-	if settings.TimeUnit < 0 || (settings.TimeUnit > 0 && settings.TimeUnit < time.Millisecond) {
-		return nil, ErrInvalidTimeUnit
-	}
-	if settings.EpochTime.After(time.Now()) {
-		return nil, ErrStartTimeAhead
+	if err := settings.Validate(); err != nil {
+		return nil, err
 	}
 
 	k8sFlake := new(Kubeflake)
@@ -116,9 +93,6 @@ func newWithSettings(settings settings) (*Kubeflake, error) {
 	k8sFlake.bitsSequence = settings.BitsSequence
 	k8sFlake.sequenceMask = uint64(1<<k8sFlake.bitsSequence - 1)
 	k8sFlake.bitsTime = 64 - k8sFlake.bitsCluster - k8sFlake.bitsMachine - k8sFlake.bitsSequence
-	if k8sFlake.bitsTime < minTimeBits {
-		return nil, ErrInvalidBitsTime
-	}
 
 	if cluster, err := settings.ClusterId(); err != nil {
 		return nil, err
@@ -183,7 +157,7 @@ func (kf *Kubeflake) NextID() (uint64, error) {
 
 func (kf *Kubeflake) toID() (uint64, error) {
 	if kf.elapsedTime >= 1<<kf.bitsTime {
-		return 0, ErrOverTimeLimit
+		return 0, errOverTimeLimit
 	}
 
 	res := kf.elapsedTime << (kf.bitsSequence + kf.bitsCluster + kf.bitsMachine)
@@ -204,23 +178,23 @@ func (kf *Kubeflake) ComposeKey(t time.Time, sequence, machineID, clusterId int)
 func (kf *Kubeflake) Compose(t time.Time, sequence, machineID, clusterId int) (uint64, error) {
 	internalTime := kf.toInternalTime(t.UTC())
 	if internalTime < kf.startTime {
-		return 0, ErrStartTimeAhead
+		return 0, internal.ErrStartTimeAhead
 	}
 	elapsedTime := internalTime - kf.startTime
 	if elapsedTime >= 1<<kf.bitsTime {
-		return 0, ErrOverTimeLimit
+		return 0, errOverTimeLimit
 	}
 
 	if sequence < 0 || sequence >= 1<<kf.bitsSequence {
-		return 0, ErrInvalidSequence
+		return 0, errInvalidSequence
 	}
 
 	if clusterId < 0 || clusterId >= 1<<kf.bitsCluster {
-		return 0, ErrInvalidClusterID
+		return 0, errInvalidClusterID
 	}
 
 	if machineID < 0 || machineID >= 1<<kf.bitsMachine {
-		return 0, ErrInvalidMachineID
+		return 0, errInvalidMachineID
 	}
 
 	return elapsedTime<<(kf.bitsSequence+kf.bitsMachine+kf.bitsCluster) |

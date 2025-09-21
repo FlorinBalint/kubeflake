@@ -1,13 +1,38 @@
 package kubeflake
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+const (
+	DefaultTimeUnit     = 10 * time.Millisecond
+	DefaultBitsCluster  = 3
+	DefaultBitsMachine  = 13
+	DefaultBitsSequence = 9
+	// Bit lengths constraints
+	MinTimeBits     = 32
+	MinSequenceBits = 8
+	MaxSequenceBits = 30
+	MinClusterBits  = 2
+	MaxClusterBits  = 8
+	MaxMachineBits  = 16
+	MinMachineBits  = 3
+)
+
+var defaultEpochTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 var (
-	defaultEpochTime    = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	defaultTimeUnit     = 10 * time.Millisecond
-	defaultBitsCluster  = 3
-	defaultBitsMachine  = 13
-	defaultBitsSequence = 9
+	ErrInvalidBitsTime      = errors.New("bit length for time must be 32 or more")
+	ErrInvalidBitsSequence  = errors.New("invalid bit length for sequence number")
+	ErrInvalidBitsMachineID = errors.New("invalid bit length for machine id")
+	ErrInvalidBitsClusterID = errors.New("invalid bit length for cluster id")
+	ErrInvalidTimeUnit      = errors.New("invalid time unit")
+	ErrInvalidSequence      = errors.New("invalid sequence number")
+	ErrInvalidMachineID     = errors.New("invalid machine id")
+	ErrInvalidClusterID     = errors.New("invalid cluster id")
+	ErrStartTimeAhead       = errors.New("start time is ahead")
+	ErrOverTimeLimit        = errors.New("over the time limit")
 )
 
 // Settings configures Kubeflake:
@@ -52,12 +77,36 @@ type Settings struct {
 	MachineId func() (int, error)
 }
 
+func (s Settings) Validate() error {
+	// Validate settings
+	if s.BitsSequence < MinSequenceBits || s.BitsSequence > MaxSequenceBits {
+		return ErrInvalidBitsSequence
+	}
+	if s.BitsMachine < MinMachineBits || s.BitsMachine > MaxMachineBits {
+		return ErrInvalidBitsMachineID
+	}
+	if s.BitsCluster < MinClusterBits || s.BitsCluster > MaxClusterBits {
+		return ErrInvalidBitsClusterID
+	}
+	if s.TimeUnit < 0 || (s.TimeUnit > 0 && s.TimeUnit < time.Millisecond) {
+		return ErrInvalidTimeUnit
+	}
+	if s.EpochTime.After(time.Now()) {
+		return ErrStartTimeAhead
+	}
+	bitsTime := 64 - s.BitsCluster - s.BitsMachine - s.BitsSequence
+	if bitsTime < MinTimeBits {
+		return ErrInvalidBitsTime
+	}
+	return nil
+}
+
 func DefaultSettings() Settings {
 	return Settings{
-		BitsSequence: defaultBitsSequence,
-		BitsCluster:  defaultBitsCluster,
-		BitsMachine:  defaultBitsMachine,
-		TimeUnit:     defaultTimeUnit,
+		BitsSequence: DefaultBitsSequence,
+		BitsCluster:  DefaultBitsCluster,
+		BitsMachine:  DefaultBitsMachine,
+		TimeUnit:     DefaultTimeUnit,
 		Base:         Base62Converter{},
 		EpochTime:    defaultEpochTime,
 	}

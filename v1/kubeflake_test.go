@@ -51,50 +51,50 @@ func TestNew_ValidationErrors(t *testing.T) {
 		{
 			name: "bits sequence too low",
 			mutate: func(s internal.Settings) internal.Settings {
-				s.BitsSequence = minSequenceBits - 1
+				s.BitsSequence = internal.MinSequenceBits - 1
 				return s
 			},
-			wantErr: ErrInvalidBitsSequence,
+			wantErr: internal.ErrInvalidBitsSequence,
 		},
 		{
 			name: "bits sequence too high",
 			mutate: func(s internal.Settings) internal.Settings {
-				s.BitsSequence = maxSequenceBits + 1
+				s.BitsSequence = internal.MaxSequenceBits + 1
 				return s
 			},
-			wantErr: ErrInvalidBitsSequence,
+			wantErr: internal.ErrInvalidBitsSequence,
 		},
 		{
 			name: "bits machine too low",
 			mutate: func(s internal.Settings) internal.Settings {
-				s.BitsMachine = minMachineBits - 1
+				s.BitsMachine = internal.MinMachineBits - 1
 				return s
 			},
-			wantErr: ErrInvalidBitsMachineID,
+			wantErr: internal.ErrInvalidBitsMachineID,
 		},
 		{
 			name: "bits machine too high",
 			mutate: func(s internal.Settings) internal.Settings {
-				s.BitsMachine = maxMachineBits + 1
+				s.BitsMachine = internal.MaxMachineBits + 1
 				return s
 			},
-			wantErr: ErrInvalidBitsMachineID,
+			wantErr: internal.ErrInvalidBitsMachineID,
 		},
 		{
 			name: "bits cluster too low",
 			mutate: func(s settings) settings {
-				s.BitsCluster = minClusterBits - 1
+				s.BitsCluster = internal.MinClusterBits - 1
 				return s
 			},
-			wantErr: ErrInvalidBitsClusterID,
+			wantErr: internal.ErrInvalidBitsClusterID,
 		},
 		{
 			name: "bits cluster too high",
 			mutate: func(s settings) settings {
-				s.BitsCluster = maxClusterBits + 1
+				s.BitsCluster = internal.MaxClusterBits + 1
 				return s
 			},
-			wantErr: ErrInvalidBitsClusterID,
+			wantErr: internal.ErrInvalidBitsClusterID,
 		},
 		{
 			name: "time unit negative",
@@ -102,7 +102,7 @@ func TestNew_ValidationErrors(t *testing.T) {
 				s.TimeUnit = -time.Millisecond
 				return s
 			},
-			wantErr: ErrInvalidTimeUnit,
+			wantErr: internal.ErrInvalidTimeUnit,
 		},
 		{
 			name: "time unit too small positive",
@@ -110,7 +110,7 @@ func TestNew_ValidationErrors(t *testing.T) {
 				s.TimeUnit = 100 * time.Microsecond
 				return s
 			},
-			wantErr: ErrInvalidTimeUnit,
+			wantErr: internal.ErrInvalidTimeUnit,
 		},
 		{
 			name: "epoch time ahead of now",
@@ -118,7 +118,7 @@ func TestNew_ValidationErrors(t *testing.T) {
 				s.EpochTime = now.Add(1 * time.Hour)
 				return s
 			},
-			wantErr: ErrStartTimeAhead,
+			wantErr: internal.ErrStartTimeAhead,
 		},
 		{
 			name: "time bits too small (overflow at construction)",
@@ -129,7 +129,7 @@ func TestNew_ValidationErrors(t *testing.T) {
 				s.BitsCluster = 8
 				return s
 			},
-			wantErr: ErrInvalidBitsTime,
+			wantErr: internal.ErrInvalidBitsTime,
 		},
 		{
 			name: "cluster id provider error",
@@ -382,7 +382,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      validMc,
 			cl:      validCl,
-			wantErr: ErrStartTimeAhead,
+			wantErr: internal.ErrStartTimeAhead,
 		},
 		{
 			name:    "sequence too small",
@@ -390,7 +390,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     -1,
 			mc:      validMc,
 			cl:      validCl,
-			wantErr: ErrInvalidSequence,
+			wantErr: errInvalidSequence,
 		},
 		{
 			name:    "sequence too large",
@@ -398,7 +398,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     1<<s.BitsSequence + 1,
 			mc:      validMc,
 			cl:      validCl,
-			wantErr: ErrInvalidSequence,
+			wantErr: errInvalidSequence,
 		},
 		{
 			name:    "machine too small",
@@ -406,7 +406,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      -1,
 			cl:      validCl,
-			wantErr: ErrInvalidMachineID,
+			wantErr: errInvalidMachineID,
 		},
 		{
 			name:    "machine too large",
@@ -414,7 +414,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      1<<s.BitsMachine + 1,
 			cl:      validCl,
-			wantErr: ErrInvalidMachineID,
+			wantErr: errInvalidMachineID,
 		},
 		{
 			name:    "cluster too small",
@@ -422,7 +422,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      validMc,
 			cl:      -1,
-			wantErr: ErrInvalidClusterID,
+			wantErr: errInvalidClusterID,
 		},
 		{
 			name:    "cluster too large",
@@ -430,7 +430,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      validMc,
 			cl:      1<<s.BitsCluster + 1,
-			wantErr: ErrInvalidClusterID,
+			wantErr: errInvalidClusterID,
 		},
 		{
 			name: "over time limit",
@@ -442,7 +442,7 @@ func TestCompose_Errors(t *testing.T) {
 			seq:     validSeq,
 			mc:      validMc,
 			cl:      validCl,
-			wantErr: ErrOverTimeLimit,
+			wantErr: errOverTimeLimit,
 		},
 	}
 
