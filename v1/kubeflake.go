@@ -53,9 +53,9 @@ type Kubeflake struct {
 // TODO: Add default MachineId and ClusterId options
 //
 // The default settings are:
-// - BitsSequence: 8
-// - BitsCluster: 8
-// - BitsMachine: 16
+// - SequenceBits: 9
+// - ClusterBits: 3
+// - MachineBits: 13
 // - TimeUnit: 10 msec
 // - Base: Base62Converter
 // - EpochTime: "2025-01-01 00:00:00 +0000 UTC"
