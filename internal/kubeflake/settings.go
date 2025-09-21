@@ -3,6 +3,8 @@ package kubeflake
 import (
 	"errors"
 	"time"
+
+	"github.com/FlorinBalint/kubeflake/pkg/kubernetes"
 )
 
 const (
@@ -63,7 +65,7 @@ var (
 //
 // The bit length of time is calculated by 64 - BitsCluster - BitsMachine - BitsSequence.
 // If it is less than 30, an error is returned (12.4 years with 1 msec time unit).
-// TODO: Consider allowing less bits if timeunit is 10 msec or more.
+// TODO: Consider allowing fewer bits if timeunit is 10 msec or more.
 type Settings struct {
 	BitsSequence int
 	BitsCluster  int
@@ -108,5 +110,6 @@ func DefaultSettings() Settings {
 		TimeUnit:     DefaultTimeUnit,
 		Base:         Base62Converter{},
 		EpochTime:    defaultEpochTime,
+		MachineId:    kubernetes.StatefulSetPodId,
 	}
 }

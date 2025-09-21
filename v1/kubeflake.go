@@ -48,9 +48,9 @@ type Kubeflake struct {
 }
 
 // New creates a new Kubeflake with the given options
-// If an option is provided, the Kubeflake instance uses the default value for that option.
+// If an option is not provided, the Kubeflake instance uses the default value for that option.
 // The MachineId function and the ClusterId function must be provided.
-// TODO: Add default MachineId and ClusterId options
+// TODO: Add default ClusterId option
 //
 // The default settings are:
 // - SequenceBits: 9
@@ -59,6 +59,8 @@ type Kubeflake struct {
 // - TimeUnit: 10 msec
 // - Base: Base62Converter
 // - EpochTime: "2025-01-01 00:00:00 +0000 UTC"
+// - MachineIdFn: Id of the pod running the Kubeflake instance in a StatefulSet
+// - ClusterIdFn: Must be provided by the user
 func New(opts ...GeneratorOptions) (*Kubeflake, error) {
 	s := internal.DefaultSettings()
 	for _, opt := range opts {
@@ -69,9 +71,10 @@ func New(opts ...GeneratorOptions) (*Kubeflake, error) {
 
 // New returns a new Kubeflake configured with the given Settings.
 // New returns an error in the following cases:
-// - Settings.BitsSequence is less than 0 or greater than 30.
-// - Settings.BitsMachineID is less than 0 or greater than 30.
-// - Settings.BitsSequence + Settings.BitsMachineID is 32 or more.
+// - Settings.BitsSequence is less than 8 or greater than 30.
+// - Settings.BitsMachine is less than 3 or greater than 16.
+// - Settings.BitsCluster is less than 2 or greater than 8.
+// - Settings.BitsCluster + Settings.BitsMachine + Settings.BitsSequence is 35 or more.
 // - Settings.TimeUnit is less than 1 msec.
 // - Settings.StartTime is ahead of the current time.
 // - Settings.MachineID returns an error.
