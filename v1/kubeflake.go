@@ -49,8 +49,6 @@ type Kubeflake struct {
 
 // New creates a new Kubeflake with the given options
 // If an option is not provided, the Kubeflake instance uses the default value for that option.
-// The MachineId function and the ClusterId function must be provided.
-// TODO: Add default ClusterId option
 //
 // The default settings are:
 // - SequenceBits: 9
@@ -60,7 +58,7 @@ type Kubeflake struct {
 // - Base: Base62Converter
 // - EpochTime: "2025-01-01 00:00:00 +0000 UTC"
 // - MachineIdFn: Id of the pod running the Kubeflake instance in a StatefulSet
-// - ClusterIdFn: Must be provided by the user
+// - ClusterIdFn: The ID of the Cloud Availability Zone where the pod is running
 func New(opts ...GeneratorOptions) (*Kubeflake, error) {
 	s := internal.DefaultSettings()
 	for _, opt := range opts {
@@ -99,12 +97,16 @@ func newWithSettings(settings settings) (*Kubeflake, error) {
 
 	if cluster, err := settings.ClusterId(); err != nil {
 		return nil, err
+	} else if cluster < 0 || cluster >= 1<<k8sFlake.bitsCluster {
+		return nil, errInvalidClusterID
 	} else {
 		k8sFlake.clusterId = cluster
 	}
 
 	if machine, err := settings.MachineId(); err != nil {
 		return nil, err
+	} else if machine < 0 || machine >= 1<<k8sFlake.bitsMachine {
+		return nil, errInvalidMachineID
 	} else {
 		k8sFlake.machineId = machine
 	}
