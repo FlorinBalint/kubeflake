@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/FlorinBalint/kubeflake/pkg/cloud"
 	"github.com/FlorinBalint/kubeflake/pkg/kubernetes"
 )
 
@@ -102,6 +103,10 @@ func (s Settings) Validate() error {
 	return nil
 }
 
+func detectAZId() (int, error) {
+	return cloud.AvailabilityZoneId(cloud.DetectProvider)
+}
+
 func DefaultSettings() Settings {
 	return Settings{
 		BitsSequence: DefaultBitsSequence,
@@ -111,5 +116,6 @@ func DefaultSettings() Settings {
 		Base:         Base62Converter{},
 		EpochTime:    defaultEpochTime,
 		MachineId:    kubernetes.StatefulSetPodId,
+		ClusterId:    detectAZId,
 	}
 }
