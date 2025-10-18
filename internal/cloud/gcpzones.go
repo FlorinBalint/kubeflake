@@ -16,15 +16,16 @@ var (
 // topGcpRegionZones lists the top zones for each region.
 // They will take the first IDs to ensure a global presence
 // even when only 3 bits are used to encode the cluster IDs.
+// The order is preserved from the input to ensure stable IDs.
 var topGcpRegionZones = map[string][]string{
 	"africa-south1":        {"a"},
-	"asia-northeast1":      {"a"},
 	"asia-south2":          {"a"},
-	"australia-southeast2": {"a"},
 	"europe-north1":        {"a"},
-	"me-west1":             {"a"},
-	"southamerica-east1":   {"a"},
 	"us-central1":          {"a"},
+	"me-west1":             {"a"},
+	"australia-southeast2": {"a"},
+	"southamerica-east1":   {"a"},
+	"asia-northeast1":      {"a"},
 }
 
 // baseRegionZones contains the baked-in regions -> zone letters.

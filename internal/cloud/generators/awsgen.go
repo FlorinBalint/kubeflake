@@ -194,10 +194,10 @@ func main() {
 			"ap-southeast-2", // Sydney
 			"eu-west-2",      // London
 			"us-west-1",      // North California
-			"ap-east-1",      // Hong Kong
+			"me-south-1",     // Bahrain
 			"af-south-1",     // South Africa, Cape Town
 			"sa-east-1",      // São Paulo
-			"me-central-1",   // Bahrain
+			"ap-east-1",      // Hong Kong
 			"ca-central-1",   // Canada Central
 		}
 		fmt.Printf("Using default 8 top regions: %v\n", customTopRegions)

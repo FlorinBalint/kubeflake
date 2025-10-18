@@ -32,6 +32,10 @@ var (
 	// Additional errors for AWS region discovery.
 	ErrAWSRegionNotFound      = errors.New("aws region not found")
 	ErrAWSMetadataUnavailable = errors.New("aws metadata server unavailable")
+
+	// Additional errors for Azure region discovery.
+	ErrAzureRegionNotFound      = errors.New("azure region not found")
+	ErrAzureMetadataUnavailable = errors.New("azure metadata server unavailable")
 )
 
 // gcpZone returns the GCP zone for the current pod's node.
@@ -188,19 +192,79 @@ func awsRegionId(ctx context.Context) (int, error) {
 	return -1, ErrAWSRegionNotFound
 }
 
+// azureRegion returns the Azure region for the current VM instance.
+// It checks env overrides (AZURE_REGION), then queries the metadata server:
+//
+//	http://169.254.169.254/metadata/instance/compute/location?api-version=2025-04-07&format=text
+//
+// Requires header: Metadata: true
+// Note: api-version is mandatory (no "latest" keyword exists). The location field has been
+// stable since api-version=2017-04-02, so any version works, but we use the latest (2025-04-07).
+func azureRegion(ctx context.Context) (string, error) {
+	// Env overrides (useful in tests or non-Azure environments)
+	if r := strings.TrimSpace(os.Getenv("AZURE_REGION")); r != "" {
+		return r, nil
+	}
+
+	// Azure Instance Metadata Service (IMDS)
+	base := "http://169.254.169.254"
+	url := base + "/metadata/instance/compute/location?api-version=2025-04-07&format=text"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Metadata", "true")
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", ErrAzureMetadataUnavailable
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", ErrAzureMetadataUnavailable
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", ErrAzureMetadataUnavailable
+	}
+
+	region := strings.TrimSpace(string(body))
+	if region == "" {
+		return "", ErrAzureRegionNotFound
+	}
+	return region, nil
+}
+
+func azureRegionId(ctx context.Context) (int, error) {
+	region, err := azureRegion(ctx)
+	if err != nil {
+		return -1, err
+	}
+	if i, ok := internal.AzureRegionIndex(region); ok {
+		return i, nil
+	}
+	return -1, ErrAzureRegionNotFound
+}
+
 func detectProvider(ctx context.Context) (Provider, error) {
 	// TODO: implement platform detection
 	return GCPProvider, nil
 }
 
 // AvailabilityZoneId returns the availability zone ID for the given provider.
-// For GCP, this returns the zone index. For AWS, this returns the region index.
+// For GCP, this returns the zone index. For AWS and Azure, this returns the region index.
 func AvailabilityZoneId(provider Provider) (int, error) {
 	switch provider {
 	case GCPProvider:
 		return gcpZoneId(context.Background())
 	case AWSProvider:
 		return awsRegionId(context.Background())
+	case AzureProvider:
+		return azureRegionId(context.Background())
 	case DetectProvider:
 		detected, err := detectProvider(context.Background())
 		if err != nil {
@@ -208,7 +272,6 @@ func AvailabilityZoneId(provider Provider) (int, error) {
 		}
 		return AvailabilityZoneId(detected)
 	default:
-		// TODO: implement for Azure
-		return -1, fmt.Errorf("function not implemented for provider: %v", provider)
+		return -1, fmt.Errorf("unknown provider: %v", provider)
 	}
 }
