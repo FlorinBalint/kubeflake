@@ -30,15 +30,16 @@ type RegionInfo struct {
 	Zones []string
 }
 
-// ZoneConfig represents the top zone for a region
-type ZoneConfig struct {
-	Id string
+// TopZone represents a region with its top zone
+type TopZone struct {
+	Region string
+	Zone   string
 }
 
 // Config represents the template configuration
 type Config struct {
 	AllRegions map[string][]RegionInfo
-	TopZones   map[string]ZoneConfig
+	TopZones   []TopZone
 }
 
 // TemplateData represents the data passed to the template
@@ -47,8 +48,9 @@ type TemplateData struct {
 }
 
 // parseTopZones parses the top zones override flag format: "region1:zone1,region2:zone2"
-func parseTopZones(topZonesFlag string) map[string]string {
-	topZones := make(map[string]string)
+// Returns a slice to preserve the order from the input
+func parseTopZones(topZonesFlag string) []TopZone {
+	var topZones []TopZone
 	if topZonesFlag == "" {
 		return topZones
 	}
@@ -59,14 +61,17 @@ func parseTopZones(topZonesFlag string) map[string]string {
 		if len(parts) == 2 {
 			region := strings.TrimSpace(parts[0])
 			zone := strings.TrimSpace(parts[1])
-			topZones[region] = zone
+			topZones = append(topZones, TopZone{
+				Region: region,
+				Zone:   zone,
+			})
 		}
 	}
 	return topZones
 }
 
 // GenerateGCPZonesFile runs gcloud command and generates gcpzones.go file
-func GenerateGCPZonesFile(customTopZones map[string]string) error {
+func GenerateGCPZonesFile(customTopZones []TopZone) error {
 	// Run gcloud compute zones list command
 	zones, err := getGCPZones()
 	if err != nil {
@@ -104,7 +109,7 @@ func getGCPZones() ([]GCPZone, error) {
 }
 
 // processZonesIntoConfig converts zones into the config structure expected by the template
-func processZonesIntoConfig(zones []GCPZone, customTopZones map[string]string) Config {
+func processZonesIntoConfig(zones []GCPZone, customTopZones []TopZone) Config {
 	regionMap := make(map[string][]string)
 	continentMap := make(map[string][]RegionInfo)
 
@@ -182,32 +187,32 @@ func classifyRegionByContinent(region string) string {
 	}
 }
 
-// selectTopZones validates and applies the custom top zones (no defaults since zones are required)
-func selectTopZones(regionMap map[string][]string, customTopZones map[string]string) map[string]ZoneConfig {
-	topZones := make(map[string]ZoneConfig)
+// selectTopZones validates and applies the custom top zones, preserving order
+func selectTopZones(regionMap map[string][]string, customTopZones []TopZone) []TopZone {
+	var validatedTopZones []TopZone
 
-	// Apply and validate custom top zones
-	for region, zone := range customTopZones {
-		if zones, exists := regionMap[region]; exists {
+	// Apply and validate custom top zones, preserving order
+	for _, topZone := range customTopZones {
+		if zones, exists := regionMap[topZone.Region]; exists {
 			// Validate that the specified zone exists for this region
 			found := false
 			for _, z := range zones {
-				if z == zone {
+				if z == topZone.Zone {
 					found = true
 					break
 				}
 			}
 			if found {
-				topZones[region] = ZoneConfig{Id: zone}
+				validatedTopZones = append(validatedTopZones, topZone)
 			} else {
-				fmt.Printf("Warning: Zone '%s' not found for region '%s', available zones: %v\n", zone, region, zones)
+				fmt.Printf("Warning: Zone '%s' not found for region '%s', available zones: %v\n", topZone.Zone, topZone.Region, zones)
 			}
 		} else {
-			fmt.Printf("Warning: Region '%s' not found in available regions\n", region)
+			fmt.Printf("Warning: Region '%s' not found in available regions\n", topZone.Region)
 		}
 	}
 
-	return topZones
+	return validatedTopZones
 }
 
 // generateFileFromTemplate generates the gcpzones.go file using the template
@@ -264,21 +269,29 @@ func generateFileFromTemplate(config Config) error {
 
 func main() {
 	flag.Parse()
-	var customTopZones map[string]string
+	var customTopZones []TopZone
 
 	if *topZonesFlag == "" {
 		// Use default hardcoded regions (8 regions for global coverage)
-		customTopZones = map[string]string{
-			"us-central1":          "a",
-			"europe-north1":        "a",
-			"asia-northeast1":      "a",
-			"australia-southeast2": "a",
-			"southamerica-east1":   "a",
-			"africa-south1":        "a",
-			"me-west1":             "a",
-			"asia-south2":          "a",
+		// Order matters - these will be assigned the first IDs
+		customTopZones = []TopZone{
+			{Region: "africa-south1", Zone: "a"},
+			{Region: "asia-south2", Zone: "a"},
+			{Region: "europe-north1", Zone: "a"},
+			{Region: "us-central1", Zone: "a"},
+			{Region: "me-west1", Zone: "a"},
+			{Region: "australia-southeast2", Zone: "a"},
+			{Region: "southamerica-east1", Zone: "a"},
+			{Region: "asia-northeast1", Zone: "a"},
 		}
-		fmt.Printf("Using default 8 top zones: %v\n", customTopZones)
+		fmt.Printf("Using default 8 top zones (in order): ")
+		for i, tz := range customTopZones {
+			if i > 0 {
+				fmt.Printf(", ")
+			}
+			fmt.Printf("%s:%s", tz.Region, tz.Zone)
+		}
+		fmt.Println()
 	} else {
 		// Parse the custom top zones
 		customTopZones = parseTopZones(*topZonesFlag)
@@ -288,7 +301,14 @@ func main() {
 			log.Fatalf("Error: You must provide exactly 2, 4 or 8 top zones, but you provided %d zones.\nProvided zones: %v", len(customTopZones), customTopZones)
 		}
 
-		fmt.Printf("Using %d custom top zones: %v\n", len(customTopZones), customTopZones)
+		fmt.Printf("Using %d custom top zones (in order): ", len(customTopZones))
+		for i, tz := range customTopZones {
+			if i > 0 {
+				fmt.Printf(", ")
+			}
+			fmt.Printf("%s:%s", tz.Region, tz.Zone)
+		}
+		fmt.Println()
 	}
 
 	err := GenerateGCPZonesFile(customTopZones)

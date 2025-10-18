@@ -16,8 +16,9 @@ var (
 // topGcpRegionZones lists the top zones for each region.
 // They will take the first IDs to ensure a global presence
 // even when only 3 bits are used to encode the cluster IDs.
+// The order is preserved from the input to ensure stable IDs.
 var topGcpRegionZones = map[string][]string{
-  {{ range $region, $zone := .Config.TopZones }}"{{ $region }}":  {"{{ $zone.Id }}"},    
+  {{ range .Config.TopZones }}"{{ .Region }}":  {"{{ .Zone }}"},
   {{ end }}
 }
 
