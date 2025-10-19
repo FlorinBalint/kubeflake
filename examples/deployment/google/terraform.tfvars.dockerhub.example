@@ -1,0 +1,28 @@
+# Example terraform.tfvars for deploying kubeflake
+# Copy this to terraform.tfvars and customize for your deployment
+
+# Docker Hub image (username/image-name)
+dockerhub_image = "florinbalint/kubeflake-keygen"
+
+# Image tag to deploy
+image_tag = "latest"
+
+# GCP Configuration
+project_id   = "your-gcp-project-id"
+location     = "us-central1-a"
+cluster_name = "kubeflake"
+
+# Node configuration
+node_count        = 3
+node_machine_type = "e2-standard-2"
+node_disk_size_gb = 75
+node_disk_type    = "pd-ssd"
+
+# Application configuration
+namespace    = "kubeflake"
+app_name     = "kubeflake"
+min_replicas = 2
+max_replicas = 5
+
+# Optional: Custom container arguments
+# container_args = ["--address", ":8083", "--bits.machine", "6"]
